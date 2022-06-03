@@ -253,49 +253,6 @@ protected:
 };
 
 
-class MessageQueue_threadsafe : protected MessageQueue{
-public:
-    explicit MessageQueue_threadsafe(void){}
-    void operator=(MessageQueue)=delete;
-    void operator=(MessageQueue_threadsafe)=delete;
-
-    // 加入新消息
-    void push(const MessagePtr& msg){
-        msg_queue_.push(msg);
-    };
-    // 移出队首消息
-    void pop(void){
-        msg_queue_.pop();
-    }
-    // 获取队首消息(不移出)
-    MessagePtr front(void){
-        return msg_queue_.front();
-    }
-    // 获取队尾消息(不移出)
-    MessagePtr back(void){
-        return msg_queue_.back();
-    }
-    size_t size(void){
-        return msg_queue_.size();
-    }
-    bool empty(void){
-        return msg_queue_.empty();
-    }
-
-    MessageQueue& operator<<(const MessagePtr& rhs){
-        push(rhs);
-        return *this;
-    }
-    MessageQueue& operator>>(MessagePtr& rhs){
-        rhs = front();
-        pop();
-        return *this;
-    }
-protected:
-    std::mutex mtx_;
-    std::condition_variable cv_;
-};
-
 } // namespace Util
 
 } // namespace FlexChat
