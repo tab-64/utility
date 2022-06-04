@@ -12,8 +12,6 @@
 #include <string>
 #include <utility>
 
-namespace FlexChat{
-
 namespace Util {
 
 using MessageID     = int;
@@ -396,7 +394,5 @@ protected:
 };
 
 } // namespace Util
-
-} // namespace FlexChat
 
 #endif // __MESSAGEQUEUE_HPP__
