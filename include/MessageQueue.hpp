@@ -267,8 +267,7 @@ public:
         return *this;
     }
     MessageQueue& operator>>(MessagePtr& rhs){
-        rhs = front();
-        pop();
+        rhs = get_front();
         return *this;
     }
 protected:
