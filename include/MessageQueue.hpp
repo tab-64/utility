@@ -219,16 +219,44 @@ public:
     };
     // 移出队首消息
     void pop(void){
-        msg_queue_.pop();
+        if(!msg_queue_.empty())
+            msg_queue_.pop();
+        else
+            throw("ERROR: invoking MessageQueue::pop() when it is empty!");
     }
     // 获取队首消息(不移出)
     MessagePtr front(void){
-        return msg_queue_.front();
+        if(!msg_queue_.empty()){
+            return msg_queue_.front();
+        }
+        else{
+            throw("ERROR: invoking MessageQueue::front() when it is empty!");
+            return std::move(MessagePtr(nullptr));
+        }
+    }
+    // 获取队首消息(移出)
+    MessagePtr get_front(void){
+        if(!msg_queue_.empty()){
+            auto tmp = msg_queue_.front();
+            msg_queue_.pop();
+            return std::move(tmp);
+        }
+        else{
+            throw("ERROR: invoking MessageQueue::get_front() when it is empty!");
+            return std::move(MessagePtr(nullptr));
+        }
     }
     // 获取队尾消息(不移出)
     MessagePtr back(void){
-        return msg_queue_.back();
+        if(!msg_queue_.empty()){
+            return msg_queue_.back();
+        }
+        else{
+            throw("ERROR: invoking MessageQueue::back() when it is empty!");
+            return std::move(MessagePtr(nullptr));
+        }
     }
+
     size_t size(void){
         return msg_queue_.size();
     }
@@ -252,6 +280,120 @@ protected:
     MsgQueue msg_queue_;
 };
 
+
+class MessageQueue_threadsafe : protected MessageQueue{
+public:
+    explicit MessageQueue_threadsafe(void){}
+
+    explicit MessageQueue_threadsafe(MessageQueue_threadsafe& rhs){
+        std::lock_guard<std::mutex> lock(rhs.mtx_);
+        msg_queue_ = rhs.msg_queue_;
+    }
+
+    explicit MessageQueue_threadsafe(MessageQueue_threadsafe&& rhs){
+        std::lock_guard<std::mutex> lock(rhs.mtx_);
+        msg_queue_.swap(rhs.msg_queue_);
+    }
+
+    void operator=(MessageQueue) = delete;
+
+    void operator=(MessageQueue_threadsafe& rhs){
+        std::lock_guard<std::mutex> lock(rhs.mtx_);
+        msg_queue_ = rhs.msg_queue_;
+    }
+
+    // 加入新消息
+    void push(const MessagePtr& msg){
+        std::unique_lock lock(mtx_);
+        msg_queue_.push(msg);
+        cv_.notify_one();
+    };
+
+    bool try_push(const MessagePtr& msg){
+        if(mtx_.try_lock()){
+            msg_queue_.push(msg);
+            mtx_.unlock();
+            return true;
+        }
+        else{
+            return false;
+        }
+    };
+
+    // 移出队首消息
+    void pop(void) noexcept{
+        std::unique_lock<std::mutex> lock(mtx_);
+        // Pause current thread and wait if the message queue is empty.
+        // Otherwise, invoke pop() without waiting for notifying.
+        cv_.wait(lock, [&](void)->bool{return !msg_queue_.empty();});
+        msg_queue_.pop();
+    }
+
+    bool try_pop(void) noexcept{
+        if(mtx_.try_lock()){
+            if(!msg_queue_.empty()){
+                msg_queue_.pop();
+                mtx_.unlock();
+                return true;
+            }
+            mtx_.unlock();
+        }
+        return false;
+    }
+    
+    MessagePtr front(void) = delete;
+
+    // 获取队首消息(移出)
+    MessagePtr get_front(void){
+        std::lock_guard<std::mutex> lock(mtx_);
+        return MessageQueue::get_front();
+    }
+    
+    bool try_get_front(MessagePtr& des) noexcept{
+        if(mtx_.try_lock()){
+            if(!msg_queue_.empty()){
+                MessagePtr tmp(msg_queue_.front());
+                msg_queue_.pop();
+                des = tmp;
+                mtx_.unlock();
+                return true;
+            }
+            mtx_.unlock();
+        }
+        des = nullptr;
+        return false;
+    }
+
+    // 获取队尾消息(不移出)
+    MessagePtr back(void){
+        std::lock_guard<std::mutex> lock(mtx_);
+        return MessageQueue::back();
+    }
+
+    size_t size(void){
+        std::lock_guard<std::mutex> lock(mtx_);
+        return msg_queue_.size();
+    }
+
+    bool empty(void){
+        std::lock_guard<std::mutex> lock(mtx_);
+        return msg_queue_.empty();
+    }
+
+    MessageQueue& operator<<(const MessagePtr& rhs){
+        push(rhs);
+        return *this;
+    }
+    MessageQueue& operator>>(MessagePtr& rhs){
+        std::lock_guard<std::mutex> lock(mtx_);
+        rhs = MessageQueue::get_front();
+        return *this;
+    }
+
+protected:
+    std::mutex mtx_;
+    std::condition_variable cv_;
+};
 
 } // namespace Util
 
