@@ -3,13 +3,32 @@
 
 //
 #include <chrono>
+#include <memory>
 #include <iostream>
+#include <string>
 #include <thread>
 
 namespace Util{
 
 namespace Console{
-    
+
+enum class Attribute{
+    Color,
+    CursorPosition,
+    Effect,
+    Typeface
+};
+
+class Controller{
+public:
+    Controller(std::ostream& out = std::cout){
+        out_.reset(&out);
+    }
+
+protected:
+    std::unique_ptr<std::ostream> out_;
+};
+
 class Animation{
 public:
     static void RotatingLine(int nTurns, int nTurnsPerSecond = 2, bool isClockwise = true){
