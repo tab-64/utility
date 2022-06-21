@@ -3,5 +3,7 @@
 
 #include "Utility/MessageQueue.hpp"
 #include "Utility/ThreadPool.hpp"
+#include "Utility/Timer.hpp"
+
 
 #endif

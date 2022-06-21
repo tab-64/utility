@@ -36,10 +36,10 @@ const MessageStr NO_STR = "";
 // 
 class MessageBase{
 public:
-    virtual const MessageType& type() = 0;  // 消息类型
-    virtual const MessageID&   id() = 0;    // 消息标识符
-    virtual MessageParam       param() = 0; // 消息参数
-    virtual MessageStr         info() = 0;  // 消息信息(字符串)
+    virtual MessageType    type() = 0;  // 消息类型
+    virtual MessageID      id() = 0;    // 消息标识符
+    virtual MessageParam   param() = 0; // 消息参数
+    virtual MessageStr     info() = 0;  // 消息信息(字符串)
 
 };
 
@@ -55,13 +55,13 @@ using MessagePtr = std::shared_ptr<MessageBase>;
 class SignalMessage : public MessageBase{
 public:
     // 禁止使用隐式类型转换
-    explicit SignalMessage(const MessageID& id){
+    explicit SignalMessage(MessageID id){
         id_ = id;
     }
-    const MessageType& type(void){
+    MessageType type(void){
         return std::move(MessageType::Signal);
     }
-    const MessageID& id(void){
+    MessageID id(void){
         return id_;
     }
     MessageParam param(void){
@@ -82,14 +82,14 @@ protected:
 //
 class CommonMessage : public MessageBase{
 public:
-    explicit CommonMessage(const MessageID& id, const MessageParam& param){
+    explicit CommonMessage(MessageID id, const MessageParam& param){
         id_     = id;
         param_  = param;
     }
-    const MessageType& type(void){
-        return std::move(MessageType::Common);
+    MessageType type(void){
+        return MessageType::Common;
     }
-    const MessageID& id(void){
+    MessageID id(void){
         return id_;
     }
     MessageParam param(void){
@@ -110,16 +110,16 @@ protected:
 //
 class StringMessage : public MessageBase{
 public:
-    explicit StringMessage(const MessageID& id, 
+    explicit StringMessage(MessageID id, 
         const MessageStr& str){
 
         id_   = id;
         str_  = str;
     }
-    const MessageType& type(void){
-        return std::move(MessageType::String);
+    MessageType type(void){
+        return MessageType::String;
     }
-    const MessageID& id(void){
+    MessageID id(void){
         return id_;
     }
     MessageParam param(void){
@@ -140,16 +140,16 @@ protected:
 //
 class MixedMessage : public MessageBase{
 public:
-    explicit MixedMessage(const MessageID& id, 
+    explicit MixedMessage(MessageID id, 
         const MessageParam& param, const MessageStr& str){
         id_     = id;
         param_  = param;
         str_    = str;
     }
-    const MessageType& type(void){
-        return std::move(MessageType::Mixed);
+    MessageType type(void){
+        return MessageType::Mixed;
     }
-    const MessageID& id(void){
+    MessageID id(void){
         return id_;
     }
     MessageParam param(void){
