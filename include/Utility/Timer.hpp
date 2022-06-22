@@ -10,7 +10,7 @@ class Timer{
 public:
     Timer(const Timer&) = delete;
     Timer(Timer&& rv){
-
+        thread_.swap(rv.thread_);
     }
 
 private:
