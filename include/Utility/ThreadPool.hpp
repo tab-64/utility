@@ -1,3 +1,14 @@
+/**
+ * @file ThreadPool.hpp
+ * @author Tab (2969117392@qq.com)
+ * @brief The declaration and definition of class ThreadPool
+ * @version 0.1
+ * @date 2022-06-23
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
+
 #ifndef __THREADPOOL_HPP__
 #define __THREADPOOL_HPP__
 
@@ -14,6 +25,10 @@
 
 namespace Util{
 
+/**
+ * @brief class ThreadPool
+ * 
+ */
 class ThreadPool{
 private:
     using _flag_bool       = std::shared_ptr<std::atomic<bool> >;
@@ -24,7 +39,7 @@ public:
     ThreadPool(ThreadPool&&) = delete;
 
     ThreadPool(const size_t& size = 32){
-        addThread(size);
+        addThread(size, false);
     }
 
     ~ThreadPool(void){
@@ -37,6 +52,15 @@ public:
                 i->first->join();   // Make sure that all the threads were exited.
     }
 
+
+    /**
+    * @brief Add a task to the ThreadPool.
+    * 
+    * @param func The task to add.
+    * @param args The additional parameters to pass.
+    * 
+    * @return The future of the task's return value.
+    */
     template <typename _Func, typename ..._Args>
     auto addTask(_Func&& func, _Args&&... args) 
         -> std::future<decltype((*(_Func*)nullptr)(args...))>{
@@ -49,22 +73,31 @@ public:
 
         std::unique_lock<std::mutex> lock(mtx_queue_);
         tasks_.emplace_back([task](){(*task)();});
+        if(tasks_.size() <= numThread())
+            cv_.notify_one();
         lock.unlock();
-
-        cv_.notify_one();
+        
+        
         return fut;
     } // addTask
 
     
-    void addThread(const size_t& count){
-        _flag_bool flag(new std::atomic<bool>(false));
+    /**
+     * @brief Add new threads to the ThreadPool.
+     * 
+     * @param count How many threads you'd like to add.
+     * @param temp  Whether the new thread is temporary or not. (Default: true)
+     * 
+     * @note A thread is temporary means that it will exit when there is no task.
+     */
+    void addThread(const size_t& count, bool temp = true){
+        _flag_bool flag(new std::atomic<bool>(temp));
         std::unique_lock<std::mutex> lock_thread(mtx_thread_);
         for(size_t i = 0; i < count; ++i){
             threads_.emplace_back(new std::thread([&](_flag_bool&& flag_stop){
                 while(true){
                     std::unique_lock<std::mutex> lock(mtx_queue_);
                     cv_.wait(lock, [&]()->bool{return (!tasks_.empty() || flag_stop->load());});
-                    
                     if(tasks_.empty()){
                         if(flag_stop->load())
                             return;
