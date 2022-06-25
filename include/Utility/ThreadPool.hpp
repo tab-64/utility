@@ -40,8 +40,9 @@ public:
     /// DO NOT use move constructor.
     ThreadPool(ThreadPool&&) = delete;
 
-    ThreadPool(const size_t& size = 32){
+    ThreadPool(const size_t& size = 32, const size_t& max_tasks = 0xFFFFFFFFFFFFFFFF){
         addThread(size);
+        max_tasks_ = max_tasks;
     }
 
     ~ThreadPool(void){
@@ -71,12 +72,18 @@ public:
 
         using _return_type = decltype((*(_Func*)nullptr)(args...));
         using _func_type   = _return_type(void);
-
+        
         auto task = \
             std::make_shared<std::packaged_task<_func_type>>(std::bind(std::forward<_Func>(func), std::forward<_Args>(args)...));
         std::future<_return_type> fut = task->get_future();
 
         std::unique_lock<std::mutex> lock(mtx_queue_);
+        if(tasks_.size() >= max_tasks_){
+            lock.unlock();
+            (*task)();
+            return fut;
+        }
+        
         tasks_.emplace_back([task](){(*task)();});
         // Invoke notify_one() when the tasks is less than the threads(or equal to).
         if(tasks_.size() <= numThread())
@@ -160,7 +167,7 @@ private:
     std::condition_variable cv_;
     std::mutex mtx_queue_;
     std::mutex mtx_thread_;
-
+    size_t max_tasks_;
 }; // class ThreadPool
 
 } // namespace Util
