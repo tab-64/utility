@@ -48,7 +48,9 @@ public:
         std::unique_lock<std::mutex> lock(mtx_thread_);
         for(auto i = threads_.begin(); i != threads_.end(); ++i)
             i->second->store(true); // All the threads have to stop.
+        
         cv_.notify_all(); // It's time to stop.
+
         for(auto i = threads_.begin(); i != threads_.end(); ++i)
             if(i->first->joinable())
                 i->first->join();   // Make sure that all the threads were exited.
@@ -66,6 +68,7 @@ public:
     template <typename _Func, typename ..._Args>
     auto addTask(_Func&& func, _Args&&... args) 
         -> std::future<decltype((*(_Func*)nullptr)(args...))>{
+
         using _return_type = decltype((*(_Func*)nullptr)(args...));
         using _func_type   = _return_type(void);
 
@@ -75,12 +78,13 @@ public:
 
         std::unique_lock<std::mutex> lock(mtx_queue_);
         tasks_.emplace_back([task](){(*task)();});
+        // Invoke notify_one() when the tasks is less than the threads(or equal to).
         if(tasks_.size() <= numThread())
             cv_.notify_one();
         lock.unlock();
         
-        
         return fut;
+
     } // addTask
 
     
@@ -92,7 +96,7 @@ public:
      * 
      */
     void addThread(const size_t& count){
-        _flag_bool flag(new std::atomic<bool>(false));
+        _flag_bool flag(new std::atomic<bool>(false)); // Use pointers to avoid deconstructing too early.
         std::unique_lock<std::mutex> lock_thread(mtx_thread_);
         for(size_t i = 0; i < count; ++i){
             threads_.emplace_back(new std::thread([&](_flag_bool flag_stop) -> void{
