@@ -35,7 +35,9 @@ private:
     using _packaged_thread = std::pair<std::unique_ptr<std::thread>, _flag_bool>;
 
 public:
+    /// DO NOT use copy constructor.
     ThreadPool(const ThreadPool&) = delete;
+    /// DO NOT use move constructor.
     ThreadPool(ThreadPool&&) = delete;
 
     ThreadPool(const size_t& size = 32){
@@ -117,11 +119,18 @@ public:
     } // addThread
 
 
+    /**
+     * @brief Remove some workers.
+     * 
+     * @param count How many workers to remove.
+     * 
+     * @warning If the count you offered is larger than the count of the existing threads, 
+     *       exception will be throwed.
+     */
     void removeThread(const size_t& count){
         std::unique_lock<std::mutex> lock(mtx_thread_);
-        if(count >= threads_.size()){
+        if(count >= threads_.size()){ // Check
             throw "ThreadPool::removeThread(): ERROR: invalid number offered.";
-            abort();
             return;
         }
         for(size_t i = 0; i < count; ++i){
