@@ -39,7 +39,7 @@ public:
     ThreadPool(ThreadPool&&) = delete;
 
     ThreadPool(const size_t& size = 32){
-        addThread(size, false);
+        addThread(size);
     }
 
     ~ThreadPool(void){
@@ -88,15 +88,15 @@ public:
      * @param count How many threads you'd like to add.
      * @param temp  Whether the new thread is temporary or not. (Default: true)
      * 
-     * @note A thread is temporary means that it will exit when there is no task.
      */
-    void addThread(const size_t& count, bool temp = true){
-        _flag_bool flag(new std::atomic<bool>(temp));
+    void addThread(const size_t& count){
+        _flag_bool flag(new std::atomic<bool>(false));
         std::unique_lock<std::mutex> lock_thread(mtx_thread_);
         for(size_t i = 0; i < count; ++i){
-            threads_.emplace_back(new std::thread([&](_flag_bool&& flag_stop){
+            threads_.emplace_back(new std::thread([&](_flag_bool flag_stop) -> void{
                 while(true){
-                    std::unique_lock<std::mutex> lock(mtx_queue_);
+                    std::unique_lock<std::mutex> lock(mtx_queue_); 
+
                     cv_.wait(lock, [&]()->bool{return (!tasks_.empty() || flag_stop->load());});
                     if(tasks_.empty()){
                         if(flag_stop->load())
@@ -109,12 +109,27 @@ public:
                         task();
                     }
                 }
+
             }, flag), flag);
 
         } // Creating threads.
 
     } // addThread
 
+
+    void removeThread(const size_t& count){
+        std::unique_lock<std::mutex> lock(mtx_thread_);
+        if(count >= threads_.size()){
+            throw "ThreadPool::removeThread(): ERROR: invalid number offered.";
+            abort();
+            return;
+        }
+        for(size_t i = 0; i < count; ++i){
+            threads_.back().first->detach();
+            threads_.back().second->store(true);
+            threads_.pop_back();
+        }
+    }
 
     size_t numTask(void){
         std::unique_lock<std::mutex> lock(mtx_queue_);
